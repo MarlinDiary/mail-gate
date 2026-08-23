@@ -11,12 +11,6 @@ import {
 } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Field,
   FieldGroup,
   FieldLabel,
@@ -34,8 +28,10 @@ const initialState: CreateGrantState = {};
 
 export function CreateAccessForm({
   services,
+  sessionMinutes,
 }: {
   services: AccessServiceOption[];
+  sessionMinutes: number;
 }) {
   const [state, formAction] = useActionState(createGrantAction, initialState);
   const firstAvailableService =
@@ -98,7 +94,7 @@ export function CreateAccessForm({
   return (
     <form action={formAction}>
       <FieldGroup className="gap-6">
-        <div className="grid gap-5 md:grid-cols-[1fr_1.4fr_1fr]">
+        <div className="grid gap-4 md:grid-cols-[1fr_1.4fr_1fr]">
           <Field>
             <FieldLabel htmlFor="service">Service</FieldLabel>
             <Select
@@ -157,31 +153,37 @@ export function CreateAccessForm({
         </div>
 
         {state.code ? (
-          <Card className="gap-3 border-0 bg-background py-4 shadow-sm ring-1 ring-foreground/5" size="sm">
-            <CardHeader className="px-4">
-              <CardTitle>Access code</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4">
-              <Button
-                aria-label="Copy access code"
-                className="h-auto w-full justify-between bg-muted/70 px-3 py-2.5 font-normal hover:bg-muted"
-                onClick={() => void copyCode()}
-                type="button"
-                variant="ghost"
-              >
-                <code className="select-all text-base font-semibold tracking-widest text-foreground">
+          <div className="rounded-xl border border-dashed border-foreground/20 bg-muted/40 px-4 py-3.5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Access code
+                </p>
+                <code className="mt-1 block truncate select-all text-lg font-semibold tracking-[0.18em] text-foreground">
                   {state.code}
                 </code>
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CopyIcon aria-hidden="true" />
-                  Copy
-                </span>
+              </div>
+              <Button
+                aria-label="Copy access code"
+                onClick={() => void copyCode()}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <CopyIcon aria-hidden="true" />
+                Copy
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Copy it now — it is not stored and cannot be shown again.
+            </p>
+          </div>
         ) : null}
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-xs text-muted-foreground">
+            Each code opens one {sessionMinutes}-minute session.
+          </p>
           <CreateButton disabled={!toAddress} />
         </div>
       </FieldGroup>

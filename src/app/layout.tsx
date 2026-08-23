@@ -37,7 +37,7 @@ export default function RootLayout({
     >
       <body className="flex h-full flex-col overflow-hidden">
         <TooltipProvider>{children}</TooltipProvider>
-        <Toaster closeButton position="top-center" richColors theme="light" />
+        <Toaster position="top-center" theme="light" />
       </body>
     </html>
   );

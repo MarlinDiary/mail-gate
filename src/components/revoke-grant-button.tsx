@@ -1,6 +1,5 @@
 "use client";
 
-import { BanIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -33,13 +32,13 @@ export function RevokeGrantButton({ id }: { id: string }) {
 
   return (
     <Button
+      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
       disabled={pending}
       onClick={() => void revoke()}
       size="sm"
       type="button"
       variant="ghost"
     >
-      <BanIcon aria-hidden="true" />
       {pending ? "Revoking..." : "Revoke"}
     </Button>
   );
