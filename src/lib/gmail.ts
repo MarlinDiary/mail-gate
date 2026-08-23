@@ -3,6 +3,7 @@ import sanitizeHtml from "sanitize-html";
 
 import { getGmailConfig, getMailGateAccountEmail } from "@/lib/config";
 import {
+  buildAdminGmailQueries,
   buildScopedGmailQuery,
   messageMatchesScope,
   readDisplayedRecipientAddresses,
@@ -67,13 +68,15 @@ export async function getMailGateFeed(
   options: MailGateFeedOptions = {}
 ): Promise<MailGateFeed> {
   const { config, gmail } = createGmailClient();
-  const query = buildScopedGmailQuery(config.query, options.scope);
+  const queries = options.scope
+    ? [buildScopedGmailQuery(config.query, options.scope)]
+    : buildAdminGmailQueries(config.query);
   const pageSize = normalizePageSize(options.pageSize);
 
-  const messageRefs = await listMessageRefs(
+  const messageRefs = await listMessageRefsForQueries(
     gmail,
     config.userId,
-    query,
+    queries,
     pageSize
   );
 
@@ -108,17 +111,17 @@ export async function getMailGateFeed(
   return {
     generatedAt: new Date().toISOString(),
     messages: messages.filter((message): message is MailGateMessage => Boolean(message)),
-    query,
+    query: queries.join("\n"),
   };
 }
 
 export async function getMailAccessOptions(): Promise<AccessServiceOption[]> {
   const { config, gmail } = createGmailClient();
-  const query = buildScopedGmailQuery(config.query);
-  const messageRefs = await listMessageRefs(
+  const queries = buildAdminGmailQueries(config.query);
+  const messageRefs = await listMessageRefsForQueries(
     gmail,
     config.userId,
-    query,
+    queries,
     MAILGATE_DEFAULT_PAGE_SIZE
   );
   const messages = await Promise.all(
@@ -206,6 +209,26 @@ async function listMessageRefs(
   });
 
   return response.data.messages ?? [];
+}
+
+async function listMessageRefsForQueries(
+  gmail: gmail_v1.Gmail,
+  userId: string,
+  queries: string[],
+  pageSize: number
+): Promise<gmail_v1.Schema$Message[]> {
+  const batches = await Promise.all(
+    queries.map((query) => listMessageRefs(gmail, userId, query, pageSize))
+  );
+  const refsById = new Map<string, gmail_v1.Schema$Message>();
+
+  for (const message of batches.flat()) {
+    if (message.id) {
+      refsById.set(message.id, message);
+    }
+  }
+
+  return [...refsById.values()];
 }
 
 async function normalizeMessage(

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildAdminGmailQueries,
   buildScopedGmailQuery,
   extractEmailAddresses,
   messageMatchesScope,
@@ -20,6 +21,14 @@ test("scoped Gmail query combines base query, service sender, and To without a t
     buildScopedGmailQuery("subject:(sign in)", scope),
     "subject:(sign in) from:(mail.anthropic.com) to:(claude-user@example.com)"
   );
+});
+
+test("administrator mailbox plans a separate From-only query per service", () => {
+  assert.deepEqual(buildAdminGmailQueries("subject:(sign in)"), [
+    "subject:(sign in) from:(mail.anthropic.com)",
+    "subject:(sign in) from:(noreply@tm.openai.com)",
+    "subject:(sign in) from:(info@account.netflix.com)",
+  ]);
 });
 
 test("administrator mailbox query uses no To or date filter", () => {

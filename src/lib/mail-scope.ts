@@ -1,4 +1,8 @@
-import { getMailService, matchesMailService } from "@/lib/mail-services";
+import {
+  getMailService,
+  MAIL_SERVICES,
+  matchesMailService,
+} from "@/lib/mail-services";
 
 export type MailAccessScope = {
   fromAddress: string;
@@ -17,6 +21,14 @@ const RECIPIENT_HEADERS = new Set([
   "to",
   "x-original-to",
 ]);
+
+export function buildAdminGmailQueries(baseQuery: string): string[] {
+  return MAIL_SERVICES.map((service) =>
+    [baseQuery.trim(), `from:(${service.senderQuery})`]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
 
 export function buildScopedGmailQuery(
   baseQuery: string,
