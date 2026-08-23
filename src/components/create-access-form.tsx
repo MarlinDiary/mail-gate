@@ -6,11 +6,24 @@ import { useFormStatus } from "react-dom";
 import {
   createGrantAction,
   type CreateGrantState,
-} from "@/app/admin/access/actions";
+} from "@/app/admin/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const initialState: CreateGrantState = {};
 
@@ -18,95 +31,79 @@ export function CreateAccessForm() {
   const [state, formAction] = useActionState(createGrantAction, initialState);
 
   return (
-    <form action={formAction} className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-2">
-        <Field label="Service" name="service">
+    <form action={formAction}>
+      <FieldGroup>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor="service">Service</FieldLabel>
           <Input
             id="service"
             name="service"
             placeholder="Anthropic or Netflix"
             required
           />
-        </Field>
-        <Field label="Redeem within" name="expiresInHours">
-          <select
-            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            defaultValue="24"
-            id="expiresInHours"
-            name="expiresInHours"
-          >
-            <option value="1">1 hour</option>
-            <option value="6">6 hours</option>
-            <option value="24">24 hours</option>
-            <option value="72">3 days</option>
-            <option value="168">7 days</option>
-          </select>
-        </Field>
-        <Field label="From email" name="fromAddress">
-          <Input
-            autoComplete="off"
-            id="fromAddress"
-            name="fromAddress"
-            placeholder="no-reply@example.com"
-            required
-            type="email"
-          />
-        </Field>
-        <Field label="To email" name="toAddress">
-          <Input
-            autoComplete="off"
-            id="toAddress"
-            name="toAddress"
-            placeholder="recipient@example.com"
-            required
-            type="email"
-          />
-        </Field>
-      </div>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="expiresInHours">Redeem within</FieldLabel>
+            <Select defaultValue="24" name="expiresInHours">
+              <SelectTrigger className="w-full" id="expiresInHours">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 hour</SelectItem>
+                <SelectItem value="6">6 hours</SelectItem>
+                <SelectItem value="24">24 hours</SelectItem>
+                <SelectItem value="72">3 days</SelectItem>
+                <SelectItem value="168">7 days</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="fromAddress">From email</FieldLabel>
+            <Input
+              autoComplete="off"
+              id="fromAddress"
+              name="fromAddress"
+              placeholder="no-reply@example.com"
+              required
+              type="email"
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="toAddress">To email</FieldLabel>
+            <Input
+              autoComplete="off"
+              id="toAddress"
+              name="toAddress"
+              placeholder="recipient@example.com"
+              required
+              type="email"
+            />
+          </Field>
+        </div>
 
-      <p className="text-sm text-muted-foreground">
-        The pass works once. The redeemed browser session lasts 15 minutes and
-        can only read messages matching this From, To, and service scope.
-      </p>
+        <FieldDescription>
+          One redemption, a 15-minute browser session, and only matching From
+          and To messages.
+        </FieldDescription>
 
-      {state.code ? (
-        <Alert>
-          <AlertTitle>One-time access pass</AlertTitle>
-          <AlertDescription className="space-y-2">
-            <code className="block select-all rounded-md bg-muted px-3 py-2 text-base font-semibold tracking-widest text-foreground">
-              {state.code}
-            </code>
-            <span>{state.message}</span>
-          </AlertDescription>
-        </Alert>
-      ) : null}
+        {state.code ? (
+          <Alert>
+            <AlertTitle>One-time access pass</AlertTitle>
+            <AlertDescription className="space-y-2">
+              <code className="block select-all rounded-md bg-muted px-3 py-2 text-base font-semibold tracking-widest text-foreground">
+                {state.code}
+              </code>
+              <span>{state.message}</span>
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
-      {state.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Access pass not created</AlertTitle>
-          <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      ) : null}
+        {state.error ? <FieldError>{state.error}</FieldError> : null}
 
-      <CreateButton />
+        <CreateButton />
+      </FieldGroup>
     </form>
-  );
-}
-
-function Field({
-  children,
-  label,
-  name,
-}: {
-  children: React.ReactNode;
-  label: string;
-  name: string;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={name}>{label}</Label>
-      {children}
-    </div>
   );
 }
 

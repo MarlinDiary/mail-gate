@@ -83,7 +83,7 @@ http://localhost:3000/setup
 
 ## Disposable Access
 
-Sign in with the administrator password and open `/admin/access`. Each generated
+Sign in with the administrator password and open `/admin`. Each generated
 pass can be redeemed once. Redemption is atomic, the plaintext pass is never
 stored, and the resulting browser session lasts 15 minutes. The Gmail query and
 message normalization both enforce the configured `From` and `To` addresses.

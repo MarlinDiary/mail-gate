@@ -3,10 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import {
-  createAccessGrant,
-  revokeAccessGrant,
-} from "@/lib/access";
+import { createAccessGrant, revokeAccessGrant } from "@/lib/access";
 import { hasAdminSession } from "@/lib/auth";
 
 const createGrantSchema = z.object({
@@ -43,7 +40,7 @@ export async function createGrantAction(
 
   try {
     const created = await createAccessGrant(parsed.data);
-    revalidatePath("/admin/access");
+    revalidatePath("/admin");
 
     return {
       code: created.code,
@@ -62,5 +59,5 @@ export async function revokeGrantAction(formData: FormData): Promise<void> {
 
   const id = z.uuid().parse(formData.get("id"));
   await revokeAccessGrant(id);
-  revalidatePath("/admin/access");
+  revalidatePath("/admin");
 }

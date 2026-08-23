@@ -2,12 +2,15 @@
 
 import {
   AlertTriangle,
+  BotIcon,
+  ClapperboardIcon,
   KeyRoundIcon,
   InboxIcon,
   LogOutIcon,
   MailOpenIcon,
   RefreshCwIcon,
 } from "lucide-react";
+import Link from "next/link";
 import * as React from "react";
 import type { CSSProperties } from "react";
 
@@ -53,6 +56,7 @@ import {
 import { ClaudeIcon } from "@/components/service-icons";
 import type { GrantSession } from "@/lib/access";
 import type { MailGateFeed, MailGateMessage } from "@/lib/gmail";
+import { groupAdminMessages, type MailboxGroup } from "@/lib/mailbox-categories";
 import { cn } from "@/lib/utils";
 
 const AUTO_REFRESH_INTERVAL_MS = 60_000;
@@ -119,13 +123,32 @@ export function MailboxShell({
   const [liveFeed, setLiveFeed] = React.useState(feed);
   const [liveFeedError, setLiveFeedError] = React.useState(feedError);
   const messages = React.useMemo(() => liveFeed?.messages ?? [], [liveFeed]);
+  const inboxes = React.useMemo<MailboxGroup[]>(
+    () =>
+      isAdmin
+        ? groupAdminMessages(messages)
+        : [
+            {
+              id: "other",
+              label: inboxLabel,
+              messages,
+            },
+          ],
+    [inboxLabel, isAdmin, messages]
+  );
+  const [activeInboxId, setActiveInboxId] = React.useState(
+    isAdmin ? "claude-code" : "other"
+  );
+  const activeInbox =
+    inboxes.find((inbox) => inbox.id === activeInboxId) ?? inboxes[0];
+  const activeInboxLabel = activeInbox?.label ?? inboxLabel;
+  const inboxMessages = activeInbox?.messages ?? [];
   const [activeMessageId, setActiveMessageId] = React.useState(
-    messages[0]?.id ?? ""
+    inboxMessages[0]?.id ?? ""
   );
   const [search, setSearch] = React.useState("");
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const refreshInFlightRef = React.useRef(false);
-  const usesClaudeIcon = /anthropic|claude/i.test(inboxLabel);
 
   const refreshFeed = React.useCallback(
     async ({ skipWhenHidden = true }: { skipWhenHidden?: boolean } = {}) => {
@@ -177,13 +200,13 @@ export function MailboxShell({
 
   const normalizedSearch = search.trim().toLowerCase();
   const filteredMessages = normalizedSearch
-    ? messages.filter((message) =>
+    ? inboxMessages.filter((message) =>
         [message.sender, message.subject, message.snippet]
           .join(" ")
           .toLowerCase()
           .includes(normalizedSearch)
       )
-    : messages;
+    : inboxMessages;
   const activeMessage =
     filteredMessages.find((message) => message.id === activeMessageId) ??
     filteredMessages[0] ??
@@ -207,26 +230,23 @@ export function MailboxShell({
         >
           <SidebarHeader className="items-center px-2 pt-3.5 pb-0">
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  aria-label={inboxLabel}
-                  isActive
-                  tooltip={{
-                    children: inboxLabel,
-                    hidden: false,
-                  }}
-                  className="justify-center px-2.5 md:px-2"
-                >
-                  {usesClaudeIcon ? (
-                    <ClaudeIcon
-                      aria-hidden="true"
-                      className="text-[#d97757]"
-                    />
-                  ) : (
-                    <InboxIcon aria-hidden="true" />
-                  )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {inboxes.map((inbox) => (
+                <SidebarMenuItem key={inbox.id}>
+                  <SidebarMenuButton
+                    aria-label={inbox.label}
+                    className="justify-center px-2.5 md:px-2"
+                    data-mailbox-id={inbox.id}
+                    isActive={activeInbox?.id === inbox.id}
+                    onClick={() => setActiveInboxId(inbox.id)}
+                    tooltip={{
+                      children: `${inbox.label} (${inbox.messages.length})`,
+                      hidden: false,
+                    }}
+                  >
+                    <MailboxIcon id={inbox.id} label={inbox.label} />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarHeader>
           <SidebarContent />
@@ -239,15 +259,15 @@ export function MailboxShell({
           <SidebarHeader className="gap-3.5 border-b p-4">
             <div className="flex w-full items-center justify-between gap-3">
               <div className="text-base font-medium text-foreground">
-                {inboxLabel}
+                {activeInboxLabel}
               </div>
               <Button
-                aria-label={`Refresh ${inboxLabel}`}
+                aria-label={`Refresh ${activeInboxLabel}`}
                 className="text-muted-foreground"
                 disabled={isRefreshing || missingConfig.length > 0}
                 onClick={() => void refreshFeed({ skipWhenHidden: false })}
                 size="icon-sm"
-                title={`Refresh ${inboxLabel}`}
+                title={`Refresh ${activeInboxLabel}`}
                 type="button"
                 variant="ghost"
               >
@@ -289,7 +309,7 @@ export function MailboxShell({
                     />
                   ))
                 ) : (
-                  <EmptyMessageList hasMessages={messages.length > 0} />
+                  <EmptyMessageList hasMessages={inboxMessages.length > 0} />
                 )}
               </SidebarGroupContent>
             </SidebarGroup>
@@ -312,7 +332,7 @@ export function MailboxShell({
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>{inboxLabel}</BreadcrumbPage>
+                <BreadcrumbPage>{activeInboxLabel}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -388,10 +408,10 @@ function RailAccountMenu({
         <DropdownMenuSeparator />
         {isAdmin ? (
           <DropdownMenuItem asChild className="cursor-pointer">
-            <a className="w-full cursor-pointer" href="/admin/access">
+            <Link className="w-full cursor-pointer" href="/admin">
               <KeyRoundIcon aria-hidden="true" />
               Access passes
-            </a>
+            </Link>
           </DropdownMenuItem>
         ) : null}
         <form action={logoutAction}>
@@ -405,6 +425,22 @@ function RailAccountMenu({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function MailboxIcon({ id, label }: { id: string; label: string }) {
+  if (id === "claude-code" || /anthropic|claude/i.test(label)) {
+    return <ClaudeIcon aria-hidden="true" className="text-[#d97757]" />;
+  }
+
+  if (id === "codex") {
+    return <BotIcon aria-hidden="true" />;
+  }
+
+  if (id === "netflix") {
+    return <ClapperboardIcon aria-hidden="true" />;
+  }
+
+  return <InboxIcon aria-hidden="true" />;
 }
 
 function MessageListItem({
