@@ -31,6 +31,14 @@ test("administrator mailbox plans a separate From-only query per service", () =>
   ]);
 });
 
+test("historical recipient discovery uses sender-only queries", () => {
+  assert.deepEqual(buildAdminGmailQueries(""), [
+    "from:(mail.anthropic.com)",
+    "from:(noreply@tm.openai.com)",
+    "from:(info@account.netflix.com)",
+  ]);
+});
+
 test("administrator mailbox query uses no To or date filter", () => {
   assert.equal(
     buildScopedGmailQuery("subject:(sign in)"),

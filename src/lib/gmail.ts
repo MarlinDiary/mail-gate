@@ -117,39 +117,47 @@ export async function getMailGateFeed(
 
 export async function getMailAccessOptions(): Promise<AccessServiceOption[]> {
   const { config, gmail } = createGmailClient();
-  const queries = buildAdminGmailQueries(config.query);
-  const messageRefs = await listMessageRefsForQueries(
+  const queries = buildAdminGmailQueries("");
+  const messageRefs = await listAllMessageRefsForQueries(
     gmail,
     config.userId,
-    queries,
-    MAILGATE_DEFAULT_PAGE_SIZE
+    queries
   );
-  const messages = await Promise.all(
-    messageRefs.map(async (message) => {
-      if (!message.id) {
-        return null;
-      }
+  const messages: Array<{
+    recipientAddresses: string[];
+    senderAddress: string;
+  } | null> = [];
 
-      const detail = await gmail.users.messages.get({
-        userId: config.userId,
-        id: message.id,
-        format: "metadata",
-        metadataHeaders: [
-          "From",
-          "To",
-          "Delivered-To",
-          "X-Original-To",
-          "Envelope-To",
-        ],
-      });
-      const headers = detail.data.payload?.headers ?? [];
+  for (const batch of chunk(messageRefs, MESSAGE_DETAIL_BATCH_SIZE)) {
+    const batchMessages = await Promise.all(
+      batch.map(async (message) => {
+        if (!message.id) {
+          return null;
+        }
 
-      return {
-        recipientAddresses: readDisplayedRecipientAddresses(headers),
-        senderAddress: readPrimarySenderAddress(headers),
-      };
-    })
-  );
+        const detail = await gmail.users.messages.get({
+          userId: config.userId,
+          id: message.id,
+          format: "metadata",
+          metadataHeaders: [
+            "From",
+            "To",
+            "Delivered-To",
+            "X-Original-To",
+            "Envelope-To",
+          ],
+        });
+        const headers = detail.data.payload?.headers ?? [];
+
+        return {
+          recipientAddresses: readDisplayedRecipientAddresses(headers),
+          senderAddress: readPrimarySenderAddress(headers),
+        };
+      })
+    );
+
+    messages.push(...batchMessages);
+  }
 
   return buildAccessServiceOptions(
     messages.filter((message): message is NonNullable<typeof message> =>
@@ -226,6 +234,37 @@ async function listMessageRefsForQueries(
     if (message.id) {
       refsById.set(message.id, message);
     }
+  }
+
+  return [...refsById.values()];
+}
+
+async function listAllMessageRefsForQueries(
+  gmail: gmail_v1.Gmail,
+  userId: string,
+  queries: string[]
+): Promise<gmail_v1.Schema$Message[]> {
+  const refsById = new Map<string, gmail_v1.Schema$Message>();
+
+  for (const query of queries) {
+    let pageToken: string | undefined;
+
+    do {
+      const response = await gmail.users.messages.list({
+        userId,
+        q: query,
+        maxResults: 100,
+        pageToken,
+      });
+
+      for (const message of response.data.messages ?? []) {
+        if (message.id) {
+          refsById.set(message.id, message);
+        }
+      }
+
+      pageToken = response.data.nextPageToken ?? undefined;
+    } while (pageToken);
   }
 
   return [...refsById.values()];

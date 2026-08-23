@@ -40,8 +40,8 @@ export default async function AdminPage() {
   ]);
 
   return (
-    <main className="min-h-svh bg-muted/30 px-4 py-8 text-foreground">
-      <div className="mx-auto max-w-4xl space-y-4">
+    <main className="min-h-svh bg-muted/20 px-4 py-10 text-foreground sm:px-6 sm:py-14">
+      <div className="mx-auto max-w-5xl space-y-10">
         <header className="flex items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">
             Temporary access
@@ -54,20 +54,20 @@ export default async function AdminPage() {
           </Button>
         </header>
 
-        <Card size="sm">
-          <CardHeader className="border-b">
-            <CardTitle>Create access</CardTitle>
+        <Card className="gap-6 border-0 bg-muted/50 py-6 shadow-none ring-0" size="sm">
+          <CardHeader className="px-5 sm:px-6">
+            <CardTitle className="text-base">Create access</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 sm:px-6">
             <CreateAccessForm services={services} />
           </CardContent>
         </Card>
 
-        <Card size="sm">
-          <CardHeader className="border-b">
-            <CardTitle>Issued access</CardTitle>
+        <Card className="gap-4 border-0 bg-transparent py-0 shadow-none ring-0" size="sm">
+          <CardHeader className="px-0">
+            <CardTitle className="text-base">Issued access</CardTitle>
           </CardHeader>
-          <CardContent className="px-0">
+          <CardContent className="overflow-hidden rounded-xl bg-card px-0 shadow-sm ring-1 ring-foreground/5">
             <GrantTable grants={grants} />
           </CardContent>
         </Card>

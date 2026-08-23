@@ -121,8 +121,6 @@ export async function consumeAccessCode(
     return null;
   }
 
-  const sessionToken = randomBytes(32).toString("base64url");
-  const sessionHash = hashAccessValue("session", sessionToken);
   const sessionExpiresAt = new Date(
     Date.now() + ACCESS_SESSION_MINUTES * 60 * 1000
   );
@@ -130,13 +128,18 @@ export async function consumeAccessCode(
   const rows = (await sql`
     UPDATE mailgate_access_grants
     SET
-      used_at = now(),
-      session_hash = ${sessionHash},
-      session_expires_at = ${sessionExpiresAt.toISOString()}
+      used_at = COALESCE(used_at, now()),
+      session_expires_at = COALESCE(
+        session_expires_at,
+        ${sessionExpiresAt.toISOString()}
+      )
     WHERE code_hash = ${hashAccessValue("code", normalizedCode)}
-      AND used_at IS NULL
       AND revoked_at IS NULL
-      AND redeem_expires_at > now()
+      AND (
+        (used_at IS NULL AND redeem_expires_at > now())
+        OR
+        (used_at IS NOT NULL AND session_expires_at > now())
+      )
     RETURNING
       id,
       service,
@@ -153,6 +156,20 @@ export async function consumeAccessCode(
   const row = rows[0];
 
   if (!row?.session_expires_at) {
+    return null;
+  }
+
+  const sessionToken = deriveGrantSessionToken(row.id);
+  const sessionRows = (await sql`
+    UPDATE mailgate_access_grants
+    SET session_hash = ${hashAccessValue("session", sessionToken)}
+    WHERE id = ${row.id}
+      AND revoked_at IS NULL
+      AND session_expires_at > now()
+    RETURNING id
+  `) as Array<{ id: string }>;
+
+  if (!sessionRows.length) {
     return null;
   }
 
@@ -275,6 +292,13 @@ export function generateAccessCode(): string {
   return characters.match(/.{1,4}/g)?.join("-") ?? characters;
 }
 
+export function getRemainingSessionMinutes(
+  expiresAt: number,
+  now = Date.now()
+): number {
+  return Math.max(0, Math.ceil((expiresAt - now) / 60_000));
+}
+
 function validateGrantInput(input: CreateAccessGrantInput): CreateAccessGrantInput {
   const service = input.service.trim();
   const fromAddress = normalizeEmailAddress(input.fromAddress);
@@ -345,6 +369,18 @@ function hashAccessValue(kind: "code" | "session", value: string): string {
   return createHmac("sha256", secret)
     .update(`mailgate:${kind}:${value}`)
     .digest("hex");
+}
+
+function deriveGrantSessionToken(grantId: string): string {
+  const secret = getSessionSecret();
+
+  if (!secret) {
+    throw new Error("MAILGATE_SESSION_SECRET is not configured.");
+  }
+
+  return createHmac("sha256", secret)
+    .update(`mailgate:grant-session:${grantId}`)
+    .digest("base64url");
 }
 
 function asDate(value: Date | string): Date {

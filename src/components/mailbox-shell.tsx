@@ -56,7 +56,10 @@ import {
   CodexIcon,
   NetflixIcon,
 } from "@/components/service-icons";
-import type { GrantSession } from "@/lib/access";
+import {
+  getRemainingSessionMinutes,
+  type GrantSession,
+} from "@/lib/access";
 import type { MailGateFeed, MailGateMessage } from "@/lib/gmail";
 import { groupAdminMessages, type MailboxGroup } from "@/lib/mailbox-categories";
 import { cn } from "@/lib/utils";
@@ -151,6 +154,17 @@ export function MailboxShell({
   const [search, setSearch] = React.useState("");
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const refreshInFlightRef = React.useRef(false);
+  const [sessionNow, setSessionNow] = React.useState(() => Date.now());
+
+  React.useEffect(() => {
+    if (!accessGrant) {
+      return;
+    }
+
+    const interval = window.setInterval(() => setSessionNow(Date.now()), 30_000);
+
+    return () => window.clearInterval(interval);
+  }, [accessGrant]);
 
   const refreshFeed = React.useCallback(
     async ({ skipWhenHidden = true }: { skipWhenHidden?: boolean } = {}) => {
@@ -339,8 +353,12 @@ export function MailboxShell({
             </BreadcrumbList>
           </Breadcrumb>
           {accessGrant ? (
-            <Badge className="ml-auto hidden max-w-[48vw] truncate sm:inline-flex" variant="secondary">
-              {accessGrant.service} · {accessGrant.fromAddress} → {accessGrant.toAddress} · 15 min
+            <Badge
+              className="ml-auto hidden sm:inline-flex"
+              suppressHydrationWarning
+              variant="secondary"
+            >
+              {getRemainingSessionMinutes(accessGrant.expiresAt, sessionNow)} min left
             </Badge>
           ) : null}
         </header>

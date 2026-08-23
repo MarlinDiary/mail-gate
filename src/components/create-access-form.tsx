@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckIcon, CopyIcon } from "lucide-react";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -36,20 +37,46 @@ export function CreateAccessForm({
     services.find((service) => service.toAddresses.length > 0) ?? services[0];
   const [serviceId, setServiceId] = useState(firstAvailableService?.id ?? "");
   const selectedService = services.find((service) => service.id === serviceId);
-  const [toAddress, setToAddress] = useState(
-    firstAvailableService?.toAddresses[0] ?? ""
+  const [recipientByService, setRecipientByService] = useState<
+    Record<string, string>
+  >(() =>
+    Object.fromEntries(
+      services.map((service) => [service.id, service.toAddresses[0] ?? ""])
+    )
   );
+  const [copiedCode, setCopiedCode] = useState("");
+  const toAddress =
+    recipientByService[serviceId] ?? selectedService?.toAddresses[0] ?? "";
 
   function selectService(value: string) {
     const nextService = services.find((service) => service.id === value);
     setServiceId(value as AccessServiceOption["id"]);
-    setToAddress(nextService?.toAddresses[0] ?? "");
+    setRecipientByService((current) => ({
+      ...current,
+      [value]: current[value] ?? nextService?.toAddresses[0] ?? "",
+    }));
+  }
+
+  function selectRecipient(value: string) {
+    setRecipientByService((current) => ({
+      ...current,
+      [serviceId]: value,
+    }));
+  }
+
+  async function copyCode() {
+    if (!state.code) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(state.code);
+    setCopiedCode(state.code);
   }
 
   return (
     <form action={formAction}>
-      <FieldGroup>
-        <div className="grid gap-3 md:grid-cols-[1fr_1.4fr_1fr]">
+      <FieldGroup className="gap-6">
+        <div className="grid gap-5 md:grid-cols-[1fr_1.4fr_1fr]">
           <Field>
             <FieldLabel htmlFor="service">Service</FieldLabel>
             <Select
@@ -73,8 +100,9 @@ export function CreateAccessForm({
             <FieldLabel htmlFor="toAddress">Recipient</FieldLabel>
             <Select
               disabled={!selectedService?.toAddresses.length}
+              key={serviceId}
               name="toAddress"
-              onValueChange={setToAddress}
+              onValueChange={selectRecipient}
               value={toAddress}
             >
               <SelectTrigger className="w-full" id="toAddress">
@@ -107,13 +135,29 @@ export function CreateAccessForm({
         </div>
 
         {state.code ? (
-          <Alert>
-            <AlertTitle>One-time access code</AlertTitle>
-            <AlertDescription className="space-y-2">
-              <code className="block select-all rounded-md bg-muted px-3 py-2 text-base font-semibold tracking-widest text-foreground">
-                {state.code}
-              </code>
-              <span>{state.message}</span>
+          <Alert className="border-0 bg-background shadow-sm ring-1 ring-foreground/5">
+            <AlertTitle>Access code</AlertTitle>
+            <AlertDescription className="space-y-3">
+              <Button
+                aria-label="Copy access code"
+                className="h-auto w-full justify-between bg-muted/70 px-3 py-2.5 font-normal hover:bg-muted"
+                onClick={() => void copyCode()}
+                type="button"
+                variant="ghost"
+              >
+                <code className="select-all text-base font-semibold tracking-widest text-foreground">
+                  {state.code}
+                </code>
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {copiedCode === state.code ? (
+                    <CheckIcon aria-hidden="true" />
+                  ) : (
+                    <CopyIcon aria-hidden="true" />
+                  )}
+                  {copiedCode === state.code ? "Copied" : "Copy"}
+                </span>
+              </Button>
+              <span className="text-xs text-muted-foreground">{state.message}</span>
             </AlertDescription>
           </Alert>
         ) : null}

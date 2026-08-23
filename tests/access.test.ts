@@ -6,6 +6,7 @@ import {
   createAccessGrant,
   generateAccessCode,
   getGrantSession,
+  getRemainingSessionMinutes,
   normalizeAccessCode,
   revokeAccessGrant,
 } from "../src/lib/access";
@@ -34,7 +35,15 @@ test("access codes are human-readable and normalize consistently", () => {
   assert.equal(normalizeAccessCode(` ${code.toLowerCase()} `), code.replaceAll("-", ""));
 });
 
-test("a grant is consumed once, creates a 15-minute session, and can be revoked", async () => {
+test("remaining session time is rounded up and never negative", () => {
+  const now = 1_000_000;
+
+  assert.equal(getRemainingSessionMinutes(now + 15 * 60_000, now), 15);
+  assert.equal(getRemainingSessionMinutes(now + 14 * 60_000 - 1, now), 14);
+  assert.equal(getRemainingSessionMinutes(now - 1, now), 0);
+});
+
+test("a code can be redeemed repeatedly during one 15-minute session and then revoked", async () => {
   assert.ok(process.env.DATABASE_URL, "DATABASE_URL is required for integration tests");
   const created = await createAccessGrant({
     expiresInHours: 1,
@@ -48,7 +57,9 @@ test("a grant is consumed once, creates a 15-minute session, and can be revoked"
   const second = await consumeAccessCode(created.code);
 
   assert.ok(first);
-  assert.equal(second, null);
+  assert.ok(second);
+  assert.equal(second.sessionToken, first.sessionToken);
+  assert.deepEqual(second.session, first.session);
   assert.equal(first.session.service, "Anthropic");
   assert.equal(first.session.toAddress, "recipient@example.com");
   assert.ok(first.session.expiresAt > Date.now());
@@ -59,7 +70,7 @@ test("a grant is consumed once, creates a 15-minute session, and can be revoked"
   assert.equal(await getGrantSession(first.sessionToken), null);
 });
 
-test("concurrent redemption has exactly one winner", async () => {
+test("concurrent redemption shares one active session", async () => {
   const created = await createAccessGrant({
     expiresInHours: 1,
     fromAddress: "info@account.netflix.com",
@@ -73,5 +84,6 @@ test("concurrent redemption has exactly one winner", async () => {
     consumeAccessCode(created.code),
   ]);
 
-  assert.equal(results.filter(Boolean).length, 1);
+  assert.equal(results.filter(Boolean).length, 2);
+  assert.equal(results[0]?.sessionToken, results[1]?.sessionToken);
 });
