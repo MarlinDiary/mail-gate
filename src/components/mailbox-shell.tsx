@@ -68,8 +68,7 @@ import { cn } from "@/lib/utils";
 const AUTO_REFRESH_INTERVAL_MS = 60_000;
 const MESSAGES_URL = "/api/messages";
 const MAILBOX_ERROR_TOAST_ID = "mailbox-feed-error";
-const ACCOUNT_AVATAR_URL =
-  "https://api.dicebear.com/9.x/notionists/svg?seed=mail-gate&backgroundColor=ffffff&backgroundType=solid";
+const ACCOUNT_AVATAR_URL = "/account-avatar.jpg";
 const EMAIL_SHADOW_BASE_STYLES = `
   :host {
     color: #0a0a0a;
