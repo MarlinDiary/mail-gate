@@ -274,7 +274,7 @@ export function MailboxShell({
           className="w-[calc(var(--sidebar-width-icon)+1px)]! border-r"
         >
           <SidebarHeader className="items-center px-2 pt-3.5 pb-0">
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
               {inboxes.map((inbox) => (
                 <SidebarMenuItem key={inbox.id}>
                   <SidebarMenuButton
