@@ -1,9 +1,9 @@
-import { ArrowLeftIcon, BanIcon } from "lucide-react";
+import { ArrowLeftIcon } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { revokeGrantAction } from "@/app/admin/actions";
 import { CreateAccessForm } from "@/components/create-access-form";
+import { RevokeGrantButton } from "@/components/revoke-grant-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -110,13 +110,7 @@ function GrantTable({ grants }: { grants: AccessGrant[] }) {
             <TableCell>{formatDate(grant.redeemExpiresAt)}</TableCell>
             <TableCell className="pr-4 text-right">
               {grant.status === "revoked" ? null : (
-                <form action={revokeGrantAction}>
-                  <input name="id" type="hidden" value={grant.id} />
-                  <Button size="sm" type="submit" variant="ghost">
-                    <BanIcon aria-hidden="true" />
-                    Revoke
-                  </Button>
-                </form>
+                <RevokeGrantButton id={grant.id} />
               )}
             </TableCell>
           </TableRow>

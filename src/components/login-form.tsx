@@ -4,9 +4,9 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useActionState } from "react";
 import * as React from "react";
 import { useFormStatus } from "react-dom";
+import { toast } from "sonner";
 
 import { loginAction, type LoginState } from "@/app/actions";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,12 @@ const initialState: LoginState = {};
 export function LoginForm({ disabled = false }: { disabled?: boolean }) {
   const [state, formAction] = useActionState(loginAction, initialState);
   const [showPassword, setShowPassword] = React.useState(false);
+
+  React.useEffect(() => {
+    if (state.error && state.feedbackId) {
+      toast.error("Sign in failed", { description: state.error });
+    }
+  }, [state.error, state.feedbackId]);
 
   return (
     <div className="space-y-5">
@@ -48,12 +54,6 @@ export function LoginForm({ disabled = false }: { disabled?: boolean }) {
             </button>
           </div>
         </Label>
-        {state.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Sign in failed</AlertTitle>
-            <AlertDescription>{state.error}</AlertDescription>
-          </Alert>
-        ) : null}
         <SubmitButton disabled={disabled} />
       </form>
     </div>

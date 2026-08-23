@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Caveat, Inter } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -36,6 +37,7 @@ export default function RootLayout({
     >
       <body className="flex h-full flex-col overflow-hidden">
         <TooltipProvider>{children}</TooltipProvider>
+        <Toaster closeButton position="top-center" richColors theme="light" />
       </body>
     </html>
   );

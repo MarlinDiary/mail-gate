@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { SetupFeedback } from "@/components/setup-feedback";
 import {
   Card,
   CardContent,
@@ -40,10 +41,15 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
   const tokenResult = decodeOAuthTokenResult(
     cookieStore.get(OAUTH_RESULT_COOKIE)?.value ?? ""
   );
+  const errorMessage = params.error ? getOAuthErrorMessage(params.error) : "";
 
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6">
+        <SetupFeedback
+          connected={params.connected === "1"}
+          errorMessage={errorMessage}
+        />
         <header className="space-y-2 border-b pb-5">
           <h1 className="text-2xl font-semibold tracking-normal">Gmail setup</h1>
           <p className="text-sm leading-6 text-muted-foreground">
@@ -51,8 +57,6 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
             generate the refresh token Mail Gate needs.
           </p>
         </header>
-
-        {params.error ? <OAuthErrorAlert code={params.error} /> : null}
 
         <Card>
           <CardHeader>
@@ -149,21 +153,14 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
   );
 }
 
-function OAuthErrorAlert({ code }: { code: string }) {
-  const message =
+function getOAuthErrorMessage(code: string): string {
+  return (
     code === "missing-refresh-token"
       ? "Google did not return a refresh token. Revoke the app grant in your Google account, then try again with consent prompted."
       : code === "invalid-oauth-state"
         ? "The OAuth state did not match. Start the setup flow again."
         : code === "token-exchange-failed"
           ? "Google returned an error while exchanging the authorization code."
-          : `OAuth setup failed: ${code}.`;
-
-  return (
-    <Alert variant="destructive">
-      <AlertCircle className="size-4" aria-hidden="true" />
-      <AlertTitle>OAuth setup error</AlertTitle>
-      <AlertDescription>{message}</AlertDescription>
-    </Alert>
+          : `OAuth setup failed: ${code}.`
   );
 }

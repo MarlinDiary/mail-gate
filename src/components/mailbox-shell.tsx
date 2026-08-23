@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import * as React from "react";
 import type { CSSProperties } from "react";
+import { toast } from "sonner";
 
 import { logoutAction } from "@/app/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -66,6 +67,7 @@ import { cn } from "@/lib/utils";
 
 const AUTO_REFRESH_INTERVAL_MS = 60_000;
 const MESSAGES_URL = "/api/messages";
+const MAILBOX_ERROR_TOAST_ID = "mailbox-feed-error";
 const ACCOUNT_AVATAR_URL =
   "https://api.dicebear.com/9.x/notionists/svg?seed=mail-gate&backgroundColor=ffffff&backgroundType=solid";
 const EMAIL_SHADOW_BASE_STYLES = `
@@ -166,8 +168,25 @@ export function MailboxShell({
     return () => window.clearInterval(interval);
   }, [accessGrant]);
 
+  React.useEffect(() => {
+    if (liveFeedError) {
+      toast.error("Mailbox unavailable", {
+        description: liveFeedError,
+        id: MAILBOX_ERROR_TOAST_ID,
+      });
+      return;
+    }
+
+    toast.dismiss(MAILBOX_ERROR_TOAST_ID);
+  }, [liveFeedError]);
+
   const refreshFeed = React.useCallback(
-    async ({ skipWhenHidden = true }: { skipWhenHidden?: boolean } = {}) => {
+    async (
+      {
+        notify = false,
+        skipWhenHidden = true,
+      }: { notify?: boolean; skipWhenHidden?: boolean } = {}
+    ) => {
       if (missingConfig.length || refreshInFlightRef.current) {
         return;
       }
@@ -190,8 +209,18 @@ export function MailboxShell({
 
         setLiveFeed(nextFeed);
         setLiveFeedError("");
+        toast.dismiss(MAILBOX_ERROR_TOAST_ID);
+
+        if (notify) {
+          toast.success("Mailbox refreshed");
+        }
       } catch {
-        setLiveFeedError("Unable to read Gmail messages.");
+        const message = "Unable to read Gmail messages.";
+        setLiveFeedError(message);
+        toast.error("Mailbox unavailable", {
+          description: message,
+          id: MAILBOX_ERROR_TOAST_ID,
+        });
       } finally {
         refreshInFlightRef.current = false;
         setIsRefreshing(false);
@@ -281,7 +310,9 @@ export function MailboxShell({
                 aria-label={`Refresh ${activeInboxLabel}`}
                 className="text-muted-foreground"
                 disabled={isRefreshing || missingConfig.length > 0}
-                onClick={() => void refreshFeed({ skipWhenHidden: false })}
+                onClick={() =>
+                  void refreshFeed({ notify: true, skipWhenHidden: false })
+                }
                 size="icon-sm"
                 title={`Refresh ${activeInboxLabel}`}
                 type="button"
@@ -307,12 +338,6 @@ export function MailboxShell({
                   <SidebarAlert
                     title="Missing environment variables"
                     description={missingConfig.join(", ")}
-                  />
-                ) : null}
-                {liveFeedError ? (
-                  <SidebarAlert
-                    title="Gmail read failed"
-                    description={liveFeedError}
                   />
                 ) : null}
                 {filteredMessages.length ? (

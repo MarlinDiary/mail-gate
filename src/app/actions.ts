@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -18,6 +19,7 @@ import { getConfigStatus } from "@/lib/config";
 
 export type LoginState = {
   error?: string;
+  feedbackId?: string;
 };
 
 export async function loginAction(
@@ -27,7 +29,10 @@ export async function loginAction(
   const status = getConfigStatus();
 
   if (!status.ready) {
-    return { error: "Mail Gate is not configured yet." };
+    return {
+      error: "Mail Gate is not configured yet.",
+      feedbackId: randomUUID(),
+    };
   }
 
   const password = String(formData.get("password") ?? "");
@@ -51,7 +56,10 @@ export async function loginAction(
     grant = await consumeAccessCode(password);
   } catch (error) {
     console.error("Unable to redeem access code.", error);
-    return { error: "Sign in is temporarily unavailable." };
+    return {
+      error: "Sign in is temporarily unavailable.",
+      feedbackId: randomUUID(),
+    };
   }
 
   if (grant) {
@@ -66,7 +74,10 @@ export async function loginAction(
     redirect("/");
   }
 
-  return { error: "Incorrect, expired, or already used access code." };
+  return {
+    error: "Incorrect or expired access code.",
+    feedbackId: randomUUID(),
+  };
 }
 
 export async function logoutAction(): Promise<void> {

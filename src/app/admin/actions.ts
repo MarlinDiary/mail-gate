@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -16,6 +17,12 @@ const createGrantSchema = z.object({
 export type CreateGrantState = {
   code?: string;
   error?: string;
+  feedbackId?: string;
+  message?: string;
+};
+
+export type RevokeGrantState = {
+  error?: string;
   message?: string;
 };
 
@@ -24,7 +31,10 @@ export async function createGrantAction(
   formData: FormData
 ): Promise<CreateGrantState> {
   if (!(await hasAdminSession())) {
-    return { error: "Administrator session required." };
+    return {
+      error: "Administrator session required.",
+      feedbackId: randomUUID(),
+    };
   }
 
   const parsed = createGrantSchema.safeParse({
@@ -34,14 +44,17 @@ export async function createGrantAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid access code." };
+    return {
+      error: parsed.error.issues[0]?.message ?? "Invalid access code.",
+      feedbackId: randomUUID(),
+    };
   }
 
   try {
     const service = getMailService(parsed.data.serviceId);
 
     if (!service) {
-      return { error: "Invalid service." };
+      return { error: "Invalid service.", feedbackId: randomUUID() };
     }
 
     const created = await createAccessGrant({
@@ -54,20 +67,40 @@ export async function createGrantAction(
 
     return {
       code: created.code,
+      feedbackId: randomUUID(),
       message: `${created.grant.service} access code created. Copy it now; it is not stored in plaintext.`,
     };
   } catch (error) {
     console.error("Unable to create access grant.", error);
-    return { error: "Unable to create access code." };
+    return {
+      error: "Unable to create access code.",
+      feedbackId: randomUUID(),
+    };
   }
 }
 
-export async function revokeGrantAction(formData: FormData): Promise<void> {
+export async function revokeGrantAction(id: string): Promise<RevokeGrantState> {
   if (!(await hasAdminSession())) {
-    throw new Error("Administrator session required.");
+    return { error: "Administrator session required." };
   }
 
-  const id = z.uuid().parse(formData.get("id"));
-  await revokeAccessGrant(id);
-  revalidatePath("/admin");
+  const parsedId = z.uuid().safeParse(id);
+
+  if (!parsedId.success) {
+    return { error: "Invalid access record." };
+  }
+
+  try {
+    const revoked = await revokeAccessGrant(parsedId.data);
+
+    if (!revoked) {
+      return { error: "This access record was already revoked." };
+    }
+
+    revalidatePath("/admin");
+    return { message: "Temporary access revoked." };
+  } catch (error) {
+    console.error("Unable to revoke access grant.", error);
+    return { error: "Unable to revoke temporary access." };
+  }
 }

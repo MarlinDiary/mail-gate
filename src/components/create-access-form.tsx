@@ -1,18 +1,23 @@
 "use client";
 
-import { CheckIcon, CopyIcon } from "lucide-react";
-import { useActionState, useState } from "react";
+import { CopyIcon } from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { toast } from "sonner";
 
 import {
   createGrantAction,
   type CreateGrantState,
 } from "@/app/admin/actions";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   Field,
-  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -44,9 +49,20 @@ export function CreateAccessForm({
       services.map((service) => [service.id, service.toAddresses[0] ?? ""])
     )
   );
-  const [copiedCode, setCopiedCode] = useState("");
   const toAddress =
     recipientByService[serviceId] ?? selectedService?.toAddresses[0] ?? "";
+
+  useEffect(() => {
+    if (!state.feedbackId) {
+      return;
+    }
+
+    if (state.error) {
+      toast.error("Code not created", { description: state.error });
+    } else if (state.message) {
+      toast.success("Access code created", { description: state.message });
+    }
+  }, [state.error, state.feedbackId, state.message]);
 
   function selectService(value: string) {
     const nextService = services.find((service) => service.id === value);
@@ -69,8 +85,14 @@ export function CreateAccessForm({
       return;
     }
 
-    await navigator.clipboard.writeText(state.code);
-    setCopiedCode(state.code);
+    try {
+      await navigator.clipboard.writeText(state.code);
+      toast.success("Access code copied");
+    } catch {
+      toast.error("Copy failed", {
+        description: "Select the code and copy it manually.",
+      });
+    }
   }
 
   return (
@@ -135,9 +157,11 @@ export function CreateAccessForm({
         </div>
 
         {state.code ? (
-          <Alert className="border-0 bg-background shadow-sm ring-1 ring-foreground/5">
-            <AlertTitle>Access code</AlertTitle>
-            <AlertDescription className="space-y-3">
+          <Card className="gap-3 border-0 bg-background py-4 shadow-sm ring-1 ring-foreground/5" size="sm">
+            <CardHeader className="px-4">
+              <CardTitle>Access code</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4">
               <Button
                 aria-label="Copy access code"
                 className="h-auto w-full justify-between bg-muted/70 px-3 py-2.5 font-normal hover:bg-muted"
@@ -149,20 +173,13 @@ export function CreateAccessForm({
                   {state.code}
                 </code>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  {copiedCode === state.code ? (
-                    <CheckIcon aria-hidden="true" />
-                  ) : (
-                    <CopyIcon aria-hidden="true" />
-                  )}
-                  {copiedCode === state.code ? "Copied" : "Copy"}
+                  <CopyIcon aria-hidden="true" />
+                  Copy
                 </span>
               </Button>
-              <span className="text-xs text-muted-foreground">{state.message}</span>
-            </AlertDescription>
-          </Alert>
+            </CardContent>
+          </Card>
         ) : null}
-
-        {state.error ? <FieldError>{state.error}</FieldError> : null}
 
         <div className="flex justify-end">
           <CreateButton disabled={!toAddress} />
