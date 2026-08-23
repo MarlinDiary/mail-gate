@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildAccessServiceOptions,
   getMailService,
+  preferExternalRecipientOptions,
 } from "../src/lib/mail-services";
 
 test("service catalog includes every mailbox service", () => {
@@ -12,6 +13,30 @@ test("service catalog includes every mailbox service", () => {
       getMailService(label)?.id
     ),
     ["claude-code", "codex", "netflix"]
+  );
+});
+
+test("recipient choices prefer external To addresses but keep mailbox fallback", () => {
+  const options = preferExternalRecipientOptions(
+    [
+      {
+        id: "claude-code",
+        label: "Claude Code",
+        toAddresses: ["mailbox@example.com", "claude@example.com"],
+      },
+      {
+        id: "codex",
+        label: "Codex",
+        toAddresses: ["mailbox@example.com"],
+      },
+      { id: "netflix", label: "Netflix", toAddresses: [] },
+    ],
+    "MAILBOX@example.com"
+  );
+
+  assert.deepEqual(
+    options.map((service) => service.toAddresses),
+    [["claude@example.com"], ["mailbox@example.com"], []]
   );
 });
 

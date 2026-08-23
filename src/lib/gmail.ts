@@ -12,6 +12,7 @@ import {
 } from "@/lib/mail-scope";
 import {
   buildAccessServiceOptions,
+  preferExternalRecipientOptions,
   type AccessServiceOption,
 } from "@/lib/mail-services";
 
@@ -151,17 +152,13 @@ export async function getMailAccessOptions(): Promise<AccessServiceOption[]> {
   ]);
   const mailboxAddress = normalizeEmailAddress(profile.data.emailAddress ?? "");
 
-  return buildAccessServiceOptions(
-    messages
-      .filter((message): message is NonNullable<typeof message> =>
+  return preferExternalRecipientOptions(
+    buildAccessServiceOptions(
+      messages.filter((message): message is NonNullable<typeof message> =>
         Boolean(message)
       )
-      .map((message) => ({
-        ...message,
-        recipientAddresses: message.recipientAddresses.filter(
-          (address) => normalizeEmailAddress(address) !== mailboxAddress
-        ),
-      }))
+    ),
+    mailboxAddress
   );
 }
 
