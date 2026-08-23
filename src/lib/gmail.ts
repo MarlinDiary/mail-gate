@@ -5,10 +5,15 @@ import { getGmailConfig, getMailGateAccountEmail } from "@/lib/config";
 import {
   buildScopedGmailQuery,
   messageMatchesScope,
+  normalizeEmailAddress,
   readPrimarySenderAddress,
   readRecipientAddresses,
   type MailAccessScope,
 } from "@/lib/mail-scope";
+import {
+  buildAccessServiceOptions,
+  type AccessServiceOption,
+} from "@/lib/mail-services";
 
 export type MailGateMessage = {
   bodyHtml: string;
@@ -28,7 +33,6 @@ export type MailGateFeed = {
   generatedAt: string;
   messages: MailGateMessage[];
   query: string;
-  windowHours: number;
 };
 
 export type MailGateFeedOptions = {
@@ -64,16 +68,8 @@ export async function getMailGateFeed(
   options: MailGateFeedOptions = {}
 ): Promise<MailGateFeed> {
   const { config, gmail } = createGmailClient();
-  const query = buildScopedGmailQuery(
-    config.query,
-    config.windowHours,
-    options.scope
-  );
+  const query = buildScopedGmailQuery(config.query, options.scope);
   const pageSize = normalizePageSize(options.pageSize);
-  const cutoff =
-    config.windowHours > 0
-      ? Date.now() - config.windowHours * 60 * 60 * 1000
-      : null;
 
   const messageRefs = await listMessageRefs(
     gmail,
@@ -102,7 +98,6 @@ export async function getMailGateFeed(
           config.userId,
           detail.data,
           config.linkHostAllowlist,
-          cutoff,
           options.scope
         );
       })
@@ -115,8 +110,59 @@ export async function getMailGateFeed(
     generatedAt: new Date().toISOString(),
     messages: messages.filter((message): message is MailGateMessage => Boolean(message)),
     query,
-    windowHours: config.windowHours,
   };
+}
+
+export async function getMailAccessOptions(): Promise<AccessServiceOption[]> {
+  const { config, gmail } = createGmailClient();
+  const query = buildScopedGmailQuery(config.query);
+  const messageRefs = await listMessageRefs(
+    gmail,
+    config.userId,
+    query,
+    MAILGATE_DEFAULT_PAGE_SIZE
+  );
+  const [profile, messages] = await Promise.all([
+    gmail.users.getProfile({ userId: config.userId }),
+    Promise.all(messageRefs.map(async (message) => {
+      if (!message.id) {
+        return null;
+      }
+
+      const detail = await gmail.users.messages.get({
+        userId: config.userId,
+        id: message.id,
+        format: "metadata",
+        metadataHeaders: [
+          "From",
+          "To",
+          "Delivered-To",
+          "X-Original-To",
+          "Envelope-To",
+        ],
+      });
+      const headers = detail.data.payload?.headers ?? [];
+
+      return {
+        recipientAddresses: readRecipientAddresses(headers),
+        senderAddress: readPrimarySenderAddress(headers),
+      };
+    })),
+  ]);
+  const mailboxAddress = normalizeEmailAddress(profile.data.emailAddress ?? "");
+
+  return buildAccessServiceOptions(
+    messages
+      .filter((message): message is NonNullable<typeof message> =>
+        Boolean(message)
+      )
+      .map((message) => ({
+        ...message,
+        recipientAddresses: message.recipientAddresses.filter(
+          (address) => normalizeEmailAddress(address) !== mailboxAddress
+        ),
+      }))
+  );
 }
 
 export async function getGmailAccountEmail(): Promise<string> {
@@ -177,12 +223,11 @@ async function normalizeMessage(
   userId: string,
   message: gmail_v1.Schema$Message,
   linkHostAllowlist: string[],
-  cutoff: number | null,
   scope?: MailAccessScope
 ): Promise<MailGateMessage | null> {
   const internalDate = Number.parseInt(message.internalDate ?? "", 10);
 
-  if (!Number.isFinite(internalDate) || (cutoff !== null && internalDate < cutoff)) {
+  if (!Number.isFinite(internalDate)) {
     return null;
   }
 

@@ -1,3 +1,5 @@
+import { getMailService, matchesMailService } from "@/lib/mail-services";
+
 export type MailAccessScope = {
   fromAddress: string;
   service: string;
@@ -18,18 +20,16 @@ const RECIPIENT_HEADERS = new Set([
 
 export function buildScopedGmailQuery(
   baseQuery: string,
-  windowHours: number,
   scope?: MailAccessScope
 ): string {
   const parts = [baseQuery.trim()];
 
   if (scope) {
-    parts.push(`from:(${scope.fromAddress})`, `to:(${scope.toAddress})`);
-  }
-
-  if (windowHours > 0) {
-    const dayWindow = Math.max(1, Math.ceil(windowHours / 24));
-    parts.push(`newer_than:${dayWindow}d`);
+    const service = getMailService(scope.service);
+    parts.push(
+      `from:(${service?.senderQuery ?? scope.fromAddress})`,
+      `to:(${scope.toAddress})`
+    );
   }
 
   return parts.filter(Boolean).join(" ");
@@ -45,9 +45,13 @@ export function messageMatchesScope(
 
   const fromAddresses = readAddresses(headers, new Set(["from"]));
   const recipientAddresses = readAddresses(headers, RECIPIENT_HEADERS);
+  const service = getMailService(scope.service);
+  const senderMatches = service
+    ? fromAddresses.some((address) => matchesMailService(address, service))
+    : fromAddresses.includes(normalizeEmailAddress(scope.fromAddress));
 
   return (
-    fromAddresses.includes(normalizeEmailAddress(scope.fromAddress)) &&
+    senderMatches &&
     recipientAddresses.includes(normalizeEmailAddress(scope.toAddress))
   );
 }

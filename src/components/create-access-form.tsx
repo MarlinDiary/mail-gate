@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import {
@@ -11,12 +11,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -24,27 +22,75 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { AccessServiceOption } from "@/lib/mail-services";
 
 const initialState: CreateGrantState = {};
 
-export function CreateAccessForm() {
+export function CreateAccessForm({
+  services,
+}: {
+  services: AccessServiceOption[];
+}) {
   const [state, formAction] = useActionState(createGrantAction, initialState);
+  const firstAvailableService =
+    services.find((service) => service.toAddresses.length > 0) ?? services[0];
+  const [serviceId, setServiceId] = useState(firstAvailableService?.id ?? "");
+  const selectedService = services.find((service) => service.id === serviceId);
+  const [toAddress, setToAddress] = useState(
+    firstAvailableService?.toAddresses[0] ?? ""
+  );
+
+  function selectService(value: string) {
+    const nextService = services.find((service) => service.id === value);
+    setServiceId(value as AccessServiceOption["id"]);
+    setToAddress(nextService?.toAddresses[0] ?? "");
+  }
 
   return (
     <form action={formAction}>
       <FieldGroup>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-[1fr_1.4fr_1fr]">
           <Field>
             <FieldLabel htmlFor="service">Service</FieldLabel>
-          <Input
-            id="service"
-            name="service"
-            placeholder="Anthropic or Netflix"
-            required
-          />
+            <Select
+              name="serviceId"
+              onValueChange={selectService}
+              value={serviceId}
+            >
+              <SelectTrigger className="w-full" id="service">
+                <SelectValue placeholder="Select service" />
+              </SelectTrigger>
+              <SelectContent>
+                {services.map((service) => (
+                  <SelectItem key={service.id} value={service.id}>
+                    {service.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <Field>
-            <FieldLabel htmlFor="expiresInHours">Redeem within</FieldLabel>
+            <FieldLabel htmlFor="toAddress">Recipient</FieldLabel>
+            <Select
+              disabled={!selectedService?.toAddresses.length}
+              name="toAddress"
+              onValueChange={setToAddress}
+              value={toAddress}
+            >
+              <SelectTrigger className="w-full" id="toAddress">
+                <SelectValue placeholder="No recipient found" />
+              </SelectTrigger>
+              <SelectContent>
+                {selectedService?.toAddresses.map((address) => (
+                  <SelectItem key={address} value={address}>
+                    {address}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="expiresInHours">Code expires after</FieldLabel>
             <Select defaultValue="24" name="expiresInHours">
               <SelectTrigger className="w-full" id="expiresInHours">
                 <SelectValue />
@@ -58,38 +104,11 @@ export function CreateAccessForm() {
               </SelectContent>
             </Select>
           </Field>
-          <Field>
-            <FieldLabel htmlFor="fromAddress">From email</FieldLabel>
-            <Input
-              autoComplete="off"
-              id="fromAddress"
-              name="fromAddress"
-              placeholder="no-reply@example.com"
-              required
-              type="email"
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="toAddress">To email</FieldLabel>
-            <Input
-              autoComplete="off"
-              id="toAddress"
-              name="toAddress"
-              placeholder="recipient@example.com"
-              required
-              type="email"
-            />
-          </Field>
         </div>
-
-        <FieldDescription>
-          One redemption, a 15-minute browser session, and only matching From
-          and To messages.
-        </FieldDescription>
 
         {state.code ? (
           <Alert>
-            <AlertTitle>One-time access pass</AlertTitle>
+            <AlertTitle>One-time access code</AlertTitle>
             <AlertDescription className="space-y-2">
               <code className="block select-all rounded-md bg-muted px-3 py-2 text-base font-semibold tracking-widest text-foreground">
                 {state.code}
@@ -101,18 +120,20 @@ export function CreateAccessForm() {
 
         {state.error ? <FieldError>{state.error}</FieldError> : null}
 
-        <CreateButton />
+        <div className="flex justify-end">
+          <CreateButton disabled={!toAddress} />
+        </div>
       </FieldGroup>
     </form>
   );
 }
 
-function CreateButton() {
+function CreateButton({ disabled }: { disabled: boolean }) {
   const status = useFormStatus();
 
   return (
-    <Button disabled={status.pending} type="submit">
-      {status.pending ? "Creating..." : "Create one-time pass"}
+    <Button disabled={disabled || status.pending} size="sm" type="submit">
+      {status.pending ? "Creating..." : "Create code"}
     </Button>
   );
 }

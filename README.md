@@ -1,7 +1,7 @@
 # Mail Gate
 
 Mail Gate is a password-gated Next.js app that reads allowlisted Gmail messages.
-Administrators can issue one-time access passes that create a revocable,
+Administrators can issue temporary access codes that create a revocable,
 15-minute browser session scoped to a service, sender address, and recipient
 address.
 
@@ -34,8 +34,8 @@ from:(login@example.com) subject:(magic link OR sign in)
 Set `MAILGATE_LINK_HOST_ALLOWLIST` whenever possible so tracking links or
 unrelated links from matching emails are not shown.
 
-Use `MAILGATE_WINDOW_HOURS="0"` only with a narrow Gmail query. It disables the
-time filter. Use `MAILGATE_MAX_RESULTS="0"` to fetch every matching Gmail result.
+The mailbox always shows the latest 10 matching messages. It does not apply a
+second age window.
 
 ## Gmail OAuth Setup
 
@@ -69,7 +69,7 @@ http://localhost:3000/setup
 
 - `DATABASE_URL`: pooled Neon connection used by the application.
 - `DATABASE_URL_UNPOOLED`: direct Neon connection used by migrations.
-- `MAILGATE_ACCESS_PASSWORD`: administrator password for the mailbox and access-pass console.
+- `MAILGATE_ACCESS_PASSWORD`: administrator password for the mailbox and temporary-access console.
 - `MAILGATE_SESSION_SECRET`: long random string used to sign the session cookie.
 - `MAILGATE_ENABLE_OAUTH_SETUP`: local-only OAuth token setup switch.
 - `GOOGLE_CLIENT_ID`: OAuth client ID for Gmail API.
@@ -77,13 +77,11 @@ http://localhost:3000/setup
 - `GOOGLE_REDIRECT_URI`: callback URL registered in Google Cloud.
 - `GOOGLE_REFRESH_TOKEN`: refresh token with Gmail read-only access.
 - `MAILGATE_GMAIL_QUERY`: Gmail search query for allowed messages.
-- `MAILGATE_WINDOW_HOURS`: message age limit in hours; `0` disables the limit.
-- `MAILGATE_MAX_RESULTS`: maximum Gmail matches to fetch; `0` fetches all.
 - `MAILGATE_LINK_HOST_ALLOWLIST`: optional comma-separated link domain allowlist.
 
 ## Disposable Access
 
 Sign in with the administrator password and open `/admin`. Each generated
-pass can be redeemed once. Redemption is atomic, the plaintext pass is never
+code can be redeemed once. Redemption is atomic, the plaintext code is never
 stored, and the resulting browser session lasts 15 minutes. The Gmail query and
-message normalization both enforce the configured `From` and `To` addresses.
+message normalization both enforce the selected service and recipient.

@@ -8,9 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -24,6 +22,8 @@ import {
 } from "@/components/ui/table";
 import { listAccessGrants, type AccessGrant } from "@/lib/access";
 import { hasAdminSession } from "@/lib/auth";
+import { getMailAccessOptions } from "@/lib/gmail";
+import { MAIL_SERVICES } from "@/lib/mail-services";
 
 export const dynamic = "force-dynamic";
 
@@ -32,42 +32,40 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  const grants = await listAccessGrants();
+  const [grants, services] = await Promise.all([
+    listAccessGrants(),
+    getMailAccessOptions().catch(() =>
+      MAIL_SERVICES.map(({ id, label }) => ({ id, label, toAddresses: [] }))
+    ),
+  ]);
 
   return (
     <main className="min-h-svh bg-muted/30 px-4 py-8 text-foreground">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">Access passes</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Create and revoke one-time mailbox access.
-          </p>
+      <div className="mx-auto max-w-4xl space-y-4">
+        <header className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Temporary access
+          </h1>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/">
+              <ArrowLeftIcon aria-hidden="true" />
+              Mailbox
+            </Link>
+          </Button>
         </header>
 
-        <Card>
+        <Card size="sm">
           <CardHeader className="border-b">
-            <CardTitle>New pass</CardTitle>
-            <CardDescription>
-              Each pass works once and opens a 15-minute scoped session.
-            </CardDescription>
-            <CardAction>
-              <Button asChild size="sm" variant="outline">
-                <Link href="/">
-                  <ArrowLeftIcon aria-hidden="true" />
-                  Mailbox
-                </Link>
-              </Button>
-            </CardAction>
+            <CardTitle>Create access</CardTitle>
           </CardHeader>
           <CardContent>
-            <CreateAccessForm />
+            <CreateAccessForm services={services} />
           </CardContent>
         </Card>
 
-        <Card>
+        <Card size="sm">
           <CardHeader className="border-b">
-            <CardTitle>Recent passes</CardTitle>
-            <CardDescription>Latest 100 records.</CardDescription>
+            <CardTitle>Issued access</CardTitle>
           </CardHeader>
           <CardContent className="px-0">
             <GrantTable grants={grants} />
@@ -82,7 +80,7 @@ function GrantTable({ grants }: { grants: AccessGrant[] }) {
   if (!grants.length) {
     return (
       <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-        No access passes yet.
+        No temporary access yet.
       </p>
     );
   }
@@ -93,7 +91,7 @@ function GrantTable({ grants }: { grants: AccessGrant[] }) {
         <TableRow>
           <TableHead className="pl-4">Access</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Redeem by</TableHead>
+          <TableHead>Expires</TableHead>
           <TableHead className="pr-4 text-right">Action</TableHead>
         </TableRow>
       </TableHeader>
@@ -103,7 +101,7 @@ function GrantTable({ grants }: { grants: AccessGrant[] }) {
             <TableCell className="pl-4">
               <span className="block font-medium">{grant.service}</span>
               <span className="block max-w-lg truncate text-xs text-muted-foreground">
-                {grant.fromAddress} → {grant.toAddress} · ••••-{grant.codeHint}
+                {grant.toAddress} · ••••-{grant.codeHint}
               </span>
             </TableCell>
             <TableCell>

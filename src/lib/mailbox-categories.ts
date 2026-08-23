@@ -1,4 +1,5 @@
 import type { MailGateMessage } from "@/lib/gmail";
+import { classifyMailService, MAIL_SERVICES } from "@/lib/mail-services";
 
 export type MailboxCategoryId =
   | "claude-code"
@@ -22,16 +23,8 @@ export type MailboxGroup = MailboxCategory & {
 };
 
 export const ADMIN_MAILBOXES: AdminMailboxCategory[] = [
-  { id: "claude-code", label: "Claude Code" },
-  { id: "codex", label: "Codex" },
-  { id: "netflix", label: "Netflix" },
+  ...MAIL_SERVICES.map(({ id, label }) => ({ id, label })),
 ];
-
-const CATEGORY_PATTERNS: Record<AdminMailboxCategoryId, RegExp> = {
-  "claude-code": /anthropic|claude/i,
-  codex: /openai|chatgpt|codex/i,
-  netflix: /netflix/i,
-};
 
 export function groupAdminMessages(messages: MailGateMessage[]): MailboxGroup[] {
   const groups: MailboxGroup[] = ADMIN_MAILBOXES.map((mailbox) => ({
@@ -57,18 +50,5 @@ export function classifyAdminMessage(
     "sender" | "senderAddress" | "snippet" | "subject"
   >
 ): MailboxCategoryId {
-  const searchable = [
-    message.sender,
-    message.senderAddress,
-    message.subject,
-    message.snippet,
-  ].join(" ");
-
-  for (const mailbox of ADMIN_MAILBOXES) {
-    if (CATEGORY_PATTERNS[mailbox.id].test(searchable)) {
-      return mailbox.id;
-    }
-  }
-
-  return "other";
+  return classifyMailService(message.senderAddress)?.id ?? "other";
 }

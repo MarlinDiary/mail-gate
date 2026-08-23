@@ -6,6 +6,7 @@ import {
   normalizeEmailAddress,
   type MailAccessScope,
 } from "@/lib/mail-scope";
+import { getMailService } from "@/lib/mail-services";
 
 export const ACCESS_SESSION_MINUTES = 15;
 export const MAX_GRANT_LIFETIME_HOURS = 24 * 7;
@@ -284,7 +285,11 @@ function validateGrantInput(input: CreateAccessGrantInput): CreateAccessGrantInp
     throw new Error("Service must be between 2 and 80 characters.");
   }
 
-  if (!EMAIL_PATTERN.test(fromAddress) || !EMAIL_PATTERN.test(toAddress)) {
+  const knownService = getMailService(service);
+  const validSender =
+    EMAIL_PATTERN.test(fromAddress) || knownService?.senderQuery === fromAddress;
+
+  if (!validSender || !EMAIL_PATTERN.test(toAddress)) {
     throw new Error("From and To must be valid email addresses.");
   }
 

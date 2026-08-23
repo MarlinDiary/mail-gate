@@ -2,8 +2,6 @@
 
 import {
   AlertTriangle,
-  BotIcon,
-  ClapperboardIcon,
   KeyRoundIcon,
   InboxIcon,
   LogOutIcon,
@@ -53,7 +51,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ClaudeIcon } from "@/components/service-icons";
+import {
+  ClaudeIcon,
+  CodexIcon,
+  NetflixIcon,
+} from "@/components/service-icons";
 import type { GrantSession } from "@/lib/access";
 import type { MailGateFeed, MailGateMessage } from "@/lib/gmail";
 import { groupAdminMessages, type MailboxGroup } from "@/lib/mailbox-categories";
@@ -239,7 +241,7 @@ export function MailboxShell({
                     isActive={activeInbox?.id === inbox.id}
                     onClick={() => setActiveInboxId(inbox.id)}
                     tooltip={{
-                      children: `${inbox.label} (${inbox.messages.length})`,
+                      children: inbox.label,
                       hidden: false,
                     }}
                   >
@@ -410,7 +412,7 @@ function RailAccountMenu({
           <DropdownMenuItem asChild className="cursor-pointer">
             <Link className="w-full cursor-pointer" href="/admin">
               <KeyRoundIcon aria-hidden="true" />
-              Access passes
+              Temporary access
             </Link>
           </DropdownMenuItem>
         ) : null}
@@ -433,11 +435,11 @@ function MailboxIcon({ id, label }: { id: string; label: string }) {
   }
 
   if (id === "codex") {
-    return <BotIcon aria-hidden="true" />;
+    return <CodexIcon aria-hidden="true" />;
   }
 
   if (id === "netflix") {
-    return <ClapperboardIcon aria-hidden="true" />;
+    return <NetflixIcon aria-hidden="true" className="text-[#e50914]" />;
   }
 
   return <InboxIcon aria-hidden="true" />;

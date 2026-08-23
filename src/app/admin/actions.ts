@@ -5,11 +5,11 @@ import { z } from "zod";
 
 import { createAccessGrant, revokeAccessGrant } from "@/lib/access";
 import { hasAdminSession } from "@/lib/auth";
+import { getMailService } from "@/lib/mail-services";
 
 const createGrantSchema = z.object({
   expiresInHours: z.coerce.number().int().min(1).max(24 * 7),
-  fromAddress: z.email().trim().toLowerCase(),
-  service: z.string().trim().min(2).max(80),
+  serviceId: z.enum(["claude-code", "codex", "netflix"]),
   toAddress: z.email().trim().toLowerCase(),
 });
 
@@ -29,26 +29,36 @@ export async function createGrantAction(
 
   const parsed = createGrantSchema.safeParse({
     expiresInHours: formData.get("expiresInHours"),
-    fromAddress: formData.get("fromAddress"),
-    service: formData.get("service"),
+    serviceId: formData.get("serviceId"),
     toAddress: formData.get("toAddress"),
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid access pass." };
+    return { error: parsed.error.issues[0]?.message ?? "Invalid access code." };
   }
 
   try {
-    const created = await createAccessGrant(parsed.data);
+    const service = getMailService(parsed.data.serviceId);
+
+    if (!service) {
+      return { error: "Invalid service." };
+    }
+
+    const created = await createAccessGrant({
+      expiresInHours: parsed.data.expiresInHours,
+      fromAddress: service.senderQuery,
+      service: service.label,
+      toAddress: parsed.data.toAddress,
+    });
     revalidatePath("/admin");
 
     return {
       code: created.code,
-      message: `${created.grant.service} access pass created. Copy it now; it is not stored in plaintext.`,
+      message: `${created.grant.service} access code created. Copy it now; it is not stored in plaintext.`,
     };
   } catch (error) {
     console.error("Unable to create access grant.", error);
-    return { error: "Unable to create access pass." };
+    return { error: "Unable to create access code." };
   }
 }
 

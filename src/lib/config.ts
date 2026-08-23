@@ -21,8 +21,6 @@ export type GmailConfig = {
   refreshToken: string;
   userId: string;
   query: string;
-  maxResults: number;
-  windowHours: number;
   linkHostAllowlist: string[];
 };
 
@@ -65,8 +63,6 @@ export function getGmailConfig(): GmailConfig {
     refreshToken: process.env.GOOGLE_REFRESH_TOKEN ?? "",
     userId: process.env.MAILGATE_GMAIL_USER ?? "me",
     query: process.env.MAILGATE_GMAIL_QUERY ?? "",
-    maxResults: parseNonNegativeInt(process.env.MAILGATE_MAX_RESULTS, 12),
-    windowHours: parseNonNegativeInt(process.env.MAILGATE_WINDOW_HOURS, 24),
     linkHostAllowlist: parseCsv(process.env.MAILGATE_LINK_HOST_ALLOWLIST),
   };
 }
@@ -115,14 +111,4 @@ function parseCsv(value: string | undefined): string[] {
     .split(",")
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
-}
-
-function parseNonNegativeInt(value: string | undefined, fallback: number): number {
-  const parsed = Number.parseInt(value ?? "", 10);
-
-  if (Number.isFinite(parsed) && parsed >= 0) {
-    return parsed;
-  }
-
-  return fallback;
 }
