@@ -64,6 +64,14 @@ export function readRecipientAddresses(headers: MailHeader[]): string[] {
   return readAddresses(headers, RECIPIENT_HEADERS);
 }
 
+export function readDisplayedRecipientAddresses(
+  headers: MailHeader[]
+): string[] {
+  const toAddresses = readAddresses(headers, new Set(["to"]));
+
+  return toAddresses.length ? toAddresses : readRecipientAddresses(headers);
+}
+
 export function extractEmailAddresses(value: string): string[] {
   const matches = value.match(
     /[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+/gi

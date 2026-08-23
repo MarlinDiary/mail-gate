@@ -356,6 +356,14 @@ export function MailboxShell({
                   {activeMessage.sender} ·{" "}
                   {detailDateFormatter.format(new Date(activeMessage.receivedAt))}
                 </p>
+                <p
+                  className="truncate text-sm text-muted-foreground"
+                  data-message-recipient-line
+                >
+                  <span className="font-medium text-foreground">To:</span>{" "}
+                  {activeMessage.recipientAddresses.join(", ") ||
+                    "(unknown recipient)"}
+                </p>
               </header>
               <Separator />
               <div className="pt-6">

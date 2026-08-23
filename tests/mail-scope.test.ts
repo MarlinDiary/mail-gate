@@ -5,6 +5,7 @@ import {
   buildScopedGmailQuery,
   extractEmailAddresses,
   messageMatchesScope,
+  readDisplayedRecipientAddresses,
   readRecipientAddresses,
 } from "../src/lib/mail-scope";
 
@@ -18,6 +19,13 @@ test("scoped Gmail query combines base query, service sender, and To without a t
   assert.equal(
     buildScopedGmailQuery("subject:(sign in)", scope),
     "subject:(sign in) from:(mail.anthropic.com) to:(claude-user@example.com)"
+  );
+});
+
+test("administrator mailbox query uses no To or date filter", () => {
+  assert.equal(
+    buildScopedGmailQuery("subject:(sign in)"),
+    "subject:(sign in)"
   );
 });
 
@@ -35,6 +43,9 @@ test("mail scope matches case-insensitive sender and original recipient headers"
   assert.deepEqual(readRecipientAddresses(headers), [
     "inbox@auckland.ac.nz",
     "claude-user@example.com",
+  ]);
+  assert.deepEqual(readDisplayedRecipientAddresses(headers), [
+    "inbox@auckland.ac.nz",
   ]);
 });
 

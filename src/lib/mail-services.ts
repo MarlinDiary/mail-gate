@@ -101,23 +101,3 @@ export function buildAccessServiceOptions(
     toAddresses: [...(addressesByService.get(service.id) ?? [])].sort(),
   }));
 }
-
-export function preferExternalRecipientOptions(
-  options: AccessServiceOption[],
-  mailboxAddress: string
-): AccessServiceOption[] {
-  const normalizedMailbox = mailboxAddress.trim().toLowerCase();
-
-  return options.map((service) => {
-    const externalAddresses = service.toAddresses.filter(
-      (address) => address !== normalizedMailbox
-    );
-
-    return {
-      ...service,
-      toAddresses: externalAddresses.length
-        ? externalAddresses
-        : service.toAddresses,
-    };
-  });
-}

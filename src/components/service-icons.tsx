@@ -1,4 +1,4 @@
-import { siClaudecode, siNetflix } from "simple-icons";
+import { siClaude, siNetflix } from "simple-icons";
 import type { SVGProps } from "react";
 
 // Simple Icons v13 OpenAI mark, retained because current Simple Icons omits it.
@@ -23,7 +23,7 @@ function BrandIcon({
 }
 
 export function ClaudeIcon(props: SVGProps<SVGSVGElement>) {
-  return <BrandIcon path={siClaudecode.path} slug="claude-code" {...props} />;
+  return <BrandIcon path={siClaude.path} slug="claude" {...props} />;
 }
 
 export function CodexIcon(props: SVGProps<SVGSVGElement>) {

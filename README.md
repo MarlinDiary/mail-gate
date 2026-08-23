@@ -35,7 +35,8 @@ Set `MAILGATE_LINK_HOST_ALLOWLIST` whenever possible so tracking links or
 unrelated links from matching emails are not shown.
 
 The mailbox always shows the latest 10 matching messages. It does not apply a
-second age window.
+second age window. Administrator mailboxes are categorized by sender only;
+recipient filtering is applied only to temporary access issued to someone else.
 
 ## Gmail OAuth Setup
 

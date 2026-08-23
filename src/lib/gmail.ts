@@ -5,14 +5,12 @@ import { getGmailConfig, getMailGateAccountEmail } from "@/lib/config";
 import {
   buildScopedGmailQuery,
   messageMatchesScope,
-  normalizeEmailAddress,
+  readDisplayedRecipientAddresses,
   readPrimarySenderAddress,
-  readRecipientAddresses,
   type MailAccessScope,
 } from "@/lib/mail-scope";
 import {
   buildAccessServiceOptions,
-  preferExternalRecipientOptions,
   type AccessServiceOption,
 } from "@/lib/mail-services";
 
@@ -123,9 +121,8 @@ export async function getMailAccessOptions(): Promise<AccessServiceOption[]> {
     query,
     MAILGATE_DEFAULT_PAGE_SIZE
   );
-  const [profile, messages] = await Promise.all([
-    gmail.users.getProfile({ userId: config.userId }),
-    Promise.all(messageRefs.map(async (message) => {
+  const messages = await Promise.all(
+    messageRefs.map(async (message) => {
       if (!message.id) {
         return null;
       }
@@ -145,20 +142,16 @@ export async function getMailAccessOptions(): Promise<AccessServiceOption[]> {
       const headers = detail.data.payload?.headers ?? [];
 
       return {
-        recipientAddresses: readRecipientAddresses(headers),
+        recipientAddresses: readDisplayedRecipientAddresses(headers),
         senderAddress: readPrimarySenderAddress(headers),
       };
-    })),
-  ]);
-  const mailboxAddress = normalizeEmailAddress(profile.data.emailAddress ?? "");
+    })
+  );
 
-  return preferExternalRecipientOptions(
-    buildAccessServiceOptions(
-      messages.filter((message): message is NonNullable<typeof message> =>
-        Boolean(message)
-      )
-    ),
-    mailboxAddress
+  return buildAccessServiceOptions(
+    messages.filter((message): message is NonNullable<typeof message> =>
+      Boolean(message)
+    )
   );
 }
 
@@ -256,7 +249,7 @@ async function normalizeMessage(
     bodyType,
     id: message.id ?? "",
     receivedAt: new Date(internalDate).toISOString(),
-    recipientAddresses: readRecipientAddresses(headers),
+    recipientAddresses: readDisplayedRecipientAddresses(headers),
     sender: formatSenderName(from),
     senderAddress: readPrimarySenderAddress(headers),
     snippet: normalizeWhitespace(decodeCommonHtmlEntities(message.snippet ?? "")),
