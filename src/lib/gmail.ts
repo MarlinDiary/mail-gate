@@ -2,6 +2,13 @@ import { gmail_v1, google } from "googleapis";
 import sanitizeHtml from "sanitize-html";
 
 import { getGmailConfig, getMailGateAccountEmail } from "@/lib/config";
+import {
+  buildScopedGmailQuery,
+  messageMatchesScope,
+  readPrimarySenderAddress,
+  readRecipientAddresses,
+  type MailAccessScope,
+} from "@/lib/mail-scope";
 
 export type MailGateMessage = {
   bodyHtml: string;
@@ -9,7 +16,9 @@ export type MailGateMessage = {
   bodyType: "html" | "text";
   id: string;
   receivedAt: string;
+  recipientAddresses: string[];
   sender: string;
+  senderAddress: string;
   snippet: string;
   subject: string;
   threadId: string;
@@ -24,6 +33,7 @@ export type MailGateFeed = {
 
 export type MailGateFeedOptions = {
   pageSize?: number;
+  scope?: MailAccessScope;
 };
 
 export const MAILGATE_DEFAULT_PAGE_SIZE = 10;
@@ -54,7 +64,11 @@ export async function getMailGateFeed(
   options: MailGateFeedOptions = {}
 ): Promise<MailGateFeed> {
   const { config, gmail } = createGmailClient();
-  const query = buildQuery(config.query, config.windowHours);
+  const query = buildScopedGmailQuery(
+    config.query,
+    config.windowHours,
+    options.scope
+  );
   const pageSize = normalizePageSize(options.pageSize);
   const cutoff =
     config.windowHours > 0
@@ -88,7 +102,8 @@ export async function getMailGateFeed(
           config.userId,
           detail.data,
           config.linkHostAllowlist,
-          cutoff
+          cutoff,
+          options.scope
         );
       })
     );
@@ -142,16 +157,6 @@ function normalizePageSize(value: number | undefined): number {
   );
 }
 
-function buildQuery(baseQuery: string, windowHours: number): string {
-  if (windowHours === 0) {
-    return baseQuery.trim();
-  }
-
-  const dayWindow = Math.max(1, Math.ceil(windowHours / 24));
-
-  return `${baseQuery.trim()} newer_than:${dayWindow}d`.trim();
-}
-
 async function listMessageRefs(
   gmail: gmail_v1.Gmail,
   userId: string,
@@ -172,7 +177,8 @@ async function normalizeMessage(
   userId: string,
   message: gmail_v1.Schema$Message,
   linkHostAllowlist: string[],
-  cutoff: number | null
+  cutoff: number | null,
+  scope?: MailAccessScope
 ): Promise<MailGateMessage | null> {
   const internalDate = Number.parseInt(message.internalDate ?? "", 10);
 
@@ -181,6 +187,11 @@ async function normalizeMessage(
   }
 
   const headers = message.payload?.headers ?? [];
+
+  if (!messageMatchesScope(headers, scope)) {
+    return null;
+  }
+
   const subject = readHeader(headers, "subject") || "(no subject)";
   const from = readHeader(headers, "from") || "(unknown sender)";
   const bodies = collectBodies(message.payload);
@@ -203,7 +214,9 @@ async function normalizeMessage(
     bodyType,
     id: message.id ?? "",
     receivedAt: new Date(internalDate).toISOString(),
+    recipientAddresses: readRecipientAddresses(headers),
     sender: formatSenderName(from),
+    senderAddress: readPrimarySenderAddress(headers),
     snippet: normalizeWhitespace(decodeCommonHtmlEntities(message.snippet ?? "")),
     subject,
     threadId: message.threadId ?? "",

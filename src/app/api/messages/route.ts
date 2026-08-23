@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { hasValidSession } from "@/lib/auth";
+import { getCurrentSession } from "@/lib/auth";
 import { getConfigStatus } from "@/lib/config";
 import { getMailGateFeed, MAILGATE_DEFAULT_PAGE_SIZE } from "@/lib/gmail";
 
 export async function GET() {
-  if (!(await hasValidSession())) {
+  const session = await getCurrentSession();
+
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -21,6 +23,14 @@ export async function GET() {
   try {
     const feed = await getMailGateFeed({
       pageSize: MAILGATE_DEFAULT_PAGE_SIZE,
+      scope:
+        session.kind === "grant"
+          ? {
+              fromAddress: session.fromAddress,
+              service: session.service,
+              toAddress: session.toAddress,
+            }
+          : undefined,
     });
 
     return NextResponse.json(feed, {

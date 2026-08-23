@@ -27,10 +27,10 @@ export function LoginForm({ disabled = false }: { disabled?: boolean }) {
               id="password"
               name="password"
               type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
+              autoComplete="one-time-code"
               className="h-12 rounded-lg bg-background pr-12 text-base shadow-none placeholder:text-muted-foreground/45 focus-visible:border-input focus-visible:ring-0"
               disabled={disabled}
-              placeholder="Password"
+              placeholder="Password or one-time code"
               required
             />
             <button

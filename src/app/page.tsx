@@ -4,7 +4,7 @@ import { DotGrid } from "@/components/dot-grid";
 import { LoginForm } from "@/components/login-form";
 import { MailboxShell } from "@/components/mailbox-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { hasValidSession } from "@/lib/auth";
+import { getCurrentSession } from "@/lib/auth";
 import { getConfigStatus, getMailGateAccountEmail } from "@/lib/config";
 import {
   getGmailAccountEmail,
@@ -16,9 +16,9 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const configStatus = getConfigStatus();
-  const authenticated = await hasValidSession();
+  const session = await getCurrentSession();
 
-  if (!authenticated) {
+  if (!session) {
     return (
       <main className="relative h-svh overflow-hidden overscroll-none bg-background px-6 py-10 text-foreground">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-30">
@@ -72,11 +72,19 @@ export default async function Home() {
   let feedError = "";
   let feed = null;
   let accountEmail = getMailGateAccountEmail();
+  const scope =
+    session.kind === "grant"
+      ? {
+          fromAddress: session.fromAddress,
+          service: session.service,
+          toAddress: session.toAddress,
+        }
+      : undefined;
 
   if (configStatus.ready) {
     try {
       [feed, accountEmail] = await Promise.all([
-        getMailGateFeed({ pageSize: MAILGATE_DEFAULT_PAGE_SIZE }),
+        getMailGateFeed({ pageSize: MAILGATE_DEFAULT_PAGE_SIZE, scope }),
         getGmailAccountEmail().catch(() => accountEmail),
       ]);
     } catch (error) {
@@ -88,8 +96,11 @@ export default async function Home() {
   return (
     <MailboxShell
       accountEmail={accountEmail}
+      accessGrant={session.kind === "grant" ? session : null}
       feed={feed}
       feedError={feedError}
+      isAdmin={session.kind === "admin"}
+      inboxLabel={scope ? `${scope.service} Inbox` : "Claude Inbox"}
       missingConfig={configStatus.ready ? [] : configStatus.missing}
     />
   );

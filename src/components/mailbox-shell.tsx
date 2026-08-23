@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  KeyRoundIcon,
   InboxIcon,
   LogOutIcon,
   MailOpenIcon,
@@ -21,6 +22,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -49,10 +51,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ClaudeIcon } from "@/components/service-icons";
+import type { GrantSession } from "@/lib/access";
 import type { MailGateFeed, MailGateMessage } from "@/lib/gmail";
 import { cn } from "@/lib/utils";
 
-const CLAUDE_INBOX_LABEL = "Claude Inbox";
 const AUTO_REFRESH_INTERVAL_MS = 60_000;
 const MESSAGES_URL = "/api/messages";
 const ACCOUNT_AVATAR_URL =
@@ -99,13 +101,19 @@ const detailDateFormatter = new Intl.DateTimeFormat("en-NZ", {
 
 export function MailboxShell({
   accountEmail,
+  accessGrant,
   feed,
   feedError,
+  inboxLabel,
+  isAdmin,
   missingConfig,
 }: {
   accountEmail: string;
+  accessGrant: GrantSession | null;
   feed: MailGateFeed | null;
   feedError: string;
+  inboxLabel: string;
+  isAdmin: boolean;
   missingConfig: string[];
 }) {
   const [liveFeed, setLiveFeed] = React.useState(feed);
@@ -117,6 +125,7 @@ export function MailboxShell({
   const [search, setSearch] = React.useState("");
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const refreshInFlightRef = React.useRef(false);
+  const usesClaudeIcon = /anthropic|claude/i.test(inboxLabel);
 
   const refreshFeed = React.useCallback(
     async ({ skipWhenHidden = true }: { skipWhenHidden?: boolean } = {}) => {
@@ -200,25 +209,29 @@ export function MailboxShell({
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  aria-label={CLAUDE_INBOX_LABEL}
+                  aria-label={inboxLabel}
                   isActive
                   tooltip={{
-                    children: CLAUDE_INBOX_LABEL,
+                    children: inboxLabel,
                     hidden: false,
                   }}
                   className="justify-center px-2.5 md:px-2"
                 >
-                  <ClaudeIcon
-                    aria-hidden="true"
-                    className="text-[#d97757]"
-                  />
+                  {usesClaudeIcon ? (
+                    <ClaudeIcon
+                      aria-hidden="true"
+                      className="text-[#d97757]"
+                    />
+                  ) : (
+                    <InboxIcon aria-hidden="true" />
+                  )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarHeader>
           <SidebarContent />
           <SidebarFooter className="items-center px-2 pt-0 pb-3">
-            <RailAccountMenu accountEmail={accountEmail} />
+            <RailAccountMenu accountEmail={accountEmail} isAdmin={isAdmin} />
           </SidebarFooter>
         </Sidebar>
 
@@ -226,15 +239,15 @@ export function MailboxShell({
           <SidebarHeader className="gap-3.5 border-b p-4">
             <div className="flex w-full items-center justify-between gap-3">
               <div className="text-base font-medium text-foreground">
-                {CLAUDE_INBOX_LABEL}
+                {inboxLabel}
               </div>
               <Button
-                aria-label="Refresh Claude Inbox"
+                aria-label={`Refresh ${inboxLabel}`}
                 className="text-muted-foreground"
                 disabled={isRefreshing || missingConfig.length > 0}
                 onClick={() => void refreshFeed({ skipWhenHidden: false })}
                 size="icon-sm"
-                title="Refresh Claude Inbox"
+                title={`Refresh ${inboxLabel}`}
                 type="button"
                 variant="ghost"
               >
@@ -299,10 +312,15 @@ export function MailboxShell({
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>{CLAUDE_INBOX_LABEL}</BreadcrumbPage>
+                <BreadcrumbPage>{inboxLabel}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          {accessGrant ? (
+            <Badge className="ml-auto hidden max-w-[48vw] truncate sm:inline-flex" variant="secondary">
+              {accessGrant.service} · {accessGrant.fromAddress} → {accessGrant.toAddress} · 15 min
+            </Badge>
+          ) : null}
         </header>
 
         <ScrollArea className="min-h-0 flex-1">
@@ -331,7 +349,13 @@ export function MailboxShell({
   );
 }
 
-function RailAccountMenu({ accountEmail }: { accountEmail: string }) {
+function RailAccountMenu({
+  accountEmail,
+  isAdmin,
+}: {
+  accountEmail: string;
+  isAdmin: boolean;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -362,6 +386,14 @@ function RailAccountMenu({ accountEmail }: { accountEmail: string }) {
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {isAdmin ? (
+          <DropdownMenuItem asChild className="cursor-pointer">
+            <a className="w-full cursor-pointer" href="/admin/access">
+              <KeyRoundIcon aria-hidden="true" />
+              Access passes
+            </a>
+          </DropdownMenuItem>
+        ) : null}
         <form action={logoutAction}>
           <DropdownMenuItem asChild className="cursor-pointer">
             <button className="w-full cursor-pointer" type="submit">

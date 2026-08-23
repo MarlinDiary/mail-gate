@@ -1,7 +1,9 @@
 # Mail Gate
 
-Mail Gate is a password-gated Next.js app that reads allowlisted Gmail messages
-and exposes only extracted HTTPS links from those messages.
+Mail Gate is a password-gated Next.js app that reads allowlisted Gmail messages.
+Administrators can issue one-time access passes that create a revocable,
+15-minute browser session scoped to a service, sender address, and recipient
+address.
 
 ## Stack
 
@@ -10,12 +12,14 @@ and exposes only extracted HTTPS links from those messages.
 - Tailwind CSS
 - shadcn/ui components
 - Gmail API with OAuth refresh token
+- Neon Postgres for one-time passes and revocable sessions
 
 ## Local Setup
 
 ```bash
 npm install
 cp .env.example .env.local
+npm run db:migrate
 npm run dev
 ```
 
@@ -63,7 +67,9 @@ http://localhost:3000/setup
 
 ## Environment
 
-- `MAILGATE_ACCESS_PASSWORD`: shared password for the Mail Gate page.
+- `DATABASE_URL`: pooled Neon connection used by the application.
+- `DATABASE_URL_UNPOOLED`: direct Neon connection used by migrations.
+- `MAILGATE_ACCESS_PASSWORD`: administrator password for the mailbox and access-pass console.
 - `MAILGATE_SESSION_SECRET`: long random string used to sign the session cookie.
 - `MAILGATE_ENABLE_OAUTH_SETUP`: local-only OAuth token setup switch.
 - `GOOGLE_CLIENT_ID`: OAuth client ID for Gmail API.
@@ -74,3 +80,10 @@ http://localhost:3000/setup
 - `MAILGATE_WINDOW_HOURS`: message age limit in hours; `0` disables the limit.
 - `MAILGATE_MAX_RESULTS`: maximum Gmail matches to fetch; `0` fetches all.
 - `MAILGATE_LINK_HOST_ALLOWLIST`: optional comma-separated link domain allowlist.
+
+## Disposable Access
+
+Sign in with the administrator password and open `/admin/access`. Each generated
+pass can be redeemed once. Redemption is atomic, the plaintext pass is never
+stored, and the resulting browser session lasts 15 minutes. The Gmail query and
+message normalization both enforce the configured `From` and `To` addresses.
